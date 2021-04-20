@@ -113,11 +113,12 @@ ui <- fluidPage(
               "West Town",
               "Woodlawn"),
               selected="Near West Side")),
-              column(6,selectInput("monthSelect1", "Month", c("January" = "Jan","February" = "Feb","March" = "Mar","April" = "Apr","May" = "May","June" = "Jun","July" = "Jul","August" = "Aug","September" = "Sep","October" = "Oct","November" = "Nov","December" = "Dec"), selected="Jan", width="100%"))
+              column(6,selectInput("monthSelect1", "Month", c("All","January" = "Jan","February" = "Feb","March" = "Mar","April" = "Apr","May" = "May","June" = "Jun","July" = "Jul","August" = "Aug","September" = "Sep","October" = "Oct","November" = "Nov","December" = "Dec"), selected="All", width="100%"))
             ),
+            fluidRow(column(6, selectInput(inputId="buildingSelect1", width="100%", label="Building type", choices=c("All", "Commercial", "Industrial", "Residential"), selected="All")),
+                     column(6, selectInput(inputId="typeSelect1", width="100%", label="Source", choices=c("Energy" = "kwh", "Gas" = "gas", "Population" = "pop", "Building height" = "height", "Building size" = "size", "Building age" = "age"), selected="kwh"))),
             mapviewOutput("areaMap1", height="calc(100vh - 245px)"),
             absolutePanel(top = 90, left=25, actionButton("resetButton1", "Reset Map")),
-            selectInput(inputId="typeSelect1", width="100%", label="Source", choices=c("Energy" = "kwh", "Gas" = "gas"), selected="kwh")
           ),
           column(6,
             fluidRow(column(6,
@@ -200,11 +201,12 @@ ui <- fluidPage(
               "West Town",
               "Woodlawn"),
               selected="Loop")),
-              column(6,selectInput("monthSelect2", "Month", c("January" = "Jan","February" = "Feb","March" = "Mar","April" = "Apr","May" = "May","June" = "Jun","July" = "Jul","August" = "Aug","September" = "Sep","October" = "Oct","November" = "Nov","December" = "Dec"), selected="Jan", width="100%"))
+              column(6,selectInput("monthSelect2", "Month", c("All","January" = "Jan","February" = "Feb","March" = "Mar","April" = "Apr","May" = "May","June" = "Jun","July" = "Jul","August" = "Aug","September" = "Sep","October" = "Oct","November" = "Nov","December" = "Dec"), selected="All", width="100%"))
             ),
+            fluidRow(column(6, selectInput(inputId="buildingSelect2", width="100%", label="Building type", choices=c("All", "Commercial", "Industrial", "Residential"), selected="All")),
+                     column(6, selectInput(inputId="typeSelect2", width="100%", label="Source", choices=c("Energy" = "kwh", "Gas" = "gas", "Population" = "pop", "Building height" = "height", "Building size" = "size", "Building age" = "age"), selected="kwh"))),
             mapviewOutput("areaMap2", height="calc(100vh - 245px)"),
-            absolutePanel(top = 90, left=25, actionButton("resetButton2", "Reset Map")),
-            selectInput(inputId="typeSelect2", width="100%", label="Source", choices=c("Energy" = "kwh", "Gas" = "gas"), selected="kwh")
+            absolutePanel(top = 180, left=25, actionButton("resetButton2", "Reset Map"))
           )
         )
     ),
@@ -216,129 +218,194 @@ ui <- fluidPage(
 ))
 
 server <- function(input, output, session) {
-  determine <- function(inputVal) {
+  determine_zcol <- function(inputVal) {
+    monthSelect <- input$monthSelect1
+    typeSelect <- input$typeSelect1
+
+    if (inputVal == 1) {
+      monthSelect <- input$monthSelect1
+      typeSelect <- input$typeSelect1
+    }
+    else {
+      monthSelect <- input$monthSelect2
+      typeSelect <- input$typeSelect2
+    }
+
     zcol <- "kwh_total"
 
-    if (input$monthSelect1 == "Jan") {
-        if (input$typeSelect1 == "gas") {
+    if (monthSelect == "Jan") {
+        if (typeSelect == "gas") {
             zcol <- "therm_january"
         }
         else {
             zcol <- "kwh_january"
         }
     }
-    else if (input$monthSelect1 == "Feb") {
-        if (input$typeSelect1 == "gas") {
+    else if (monthSelect == "Feb") {
+        if (typeSelect == "gas") {
             zcol <- "therm_february"
         }
-        else {
+        else if (typeSelect == "kwh") {
             zcol <- "kwh_february"
         }
     }
-    else if (input$monthSelect1 == "Mar") {
-        if (input$typeSelect1 == "gas") {
+    else if (monthSelect == "Mar") {
+        if (typeSelect == "gas") {
             zcol <- "therm_march"
         }
-        else {
+        else if (typeSelect == "kwh") {
             zcol <- "kwh_march"
         }
     }
-    else if (input$monthSelect1 == "Apr") {
-        if (input$typeSelect1 == "gas") {
+    else if (monthSelect == "Apr") {
+        if (typeSelect == "gas") {
             zcol <- "therm_april"
         }
-        else {
+        else if (typeSelect == "kwh") {
             zcol <- "kwh_april"
         }
     }
-    else if (input$monthSelect1 == "May") {
-        if (input$typeSelect1 == "gas") {
+    else if (monthSelect == "May") {
+        if (typeSelect == "gas") {
             zcol <- "therm_may"
         }
-        else {
+        else if (typeSelect == "kwh") {
             zcol <- "kwh_may"
         }
     }
-    else if (input$monthSelect1 == "Jun") {
-        if (input$typeSelect1 == "gas") {
+    else if (monthSelect == "Jun") {
+        if (typeSelect == "gas") {
             zcol <- "therm_june"
         }
-        else {
+        else if (typeSelect == "kwh") {
             zcol <- "kwh_june"
         }
     }
-    else if (input$monthSelect1 == "Jul") {
-        if (input$typeSelect1 == "gas") {
+    else if (monthSelect == "Jul") {
+        if (typeSelect == "gas") {
             zcol <- "therm_july"
         }
-        else {
+        else if (typeSelect == "kwh") {
             zcol <- "kwh_july"
         }
     }
-    else if (input$monthSelect1 == "Aug") {
-        if (input$typeSelect1 == "gas") {
+    else if (monthSelect == "Aug") {
+        if (typeSelect == "gas") {
             zcol <- "therm_august"
         }
-        else {
+        else if (typeSelect == "kwh") {
             zcol <- "kwh_august"
         }
     }
-    else if (input$monthSelect1 == "Sep") {
-        if (input$typeSelect1 == "gas") {
+    else if (monthSelect == "Sep") {
+        if (typeSelect == "gas") {
             zcol <- "therm_september"
         }
-        else {
+        else if (typeSelect == "kwh") {
             zcol <- "kwh_september"
         }
     }
-    else if (input$monthSelect1 == "Oct") {
-        if (input$typeSelect1 == "gas") {
+    else if (monthSelect == "Oct") {
+        if (typeSelect == "gas") {
             zcol <- "therm_october"
         }
-        else {
+        else if (typeSelect == "kwh") {
             zcol <- "kwh_october"
         }
     }
-    else if (input$monthSelect1 == "Nov") {
-        if (input$typeSelect1 == "gas") {
+    else if (monthSelect == "Nov") {
+        if (typeSelect == "gas") {
             zcol <- "therm_november"
         }
-        else {
+        else if (typeSelect == "kwh") {
             zcol <- "kwh_november"
         }
     }
-    else if (input$monthSelect1 == "Dec") {
-        if (input$typeSelect1 == "gas") {
+    else if (monthSelect == "Dec") {
+        if (typeSelect == "gas") {
             zcol <- "therm_december"
         }
-        else {
+        else if (typeSelect == "kwh") {
             zcol <- "khw_december"
         }
+    }
+
+    if (typeSelect == "age") {
+      zcol <- "building_age"
+    }
+    else if (typeSelect == "height") {
+      zcol <- "building_height"
+    }
+    else if (typeSelect == "size") {
+      zcol <- "building_size"
+    }
+    else if (typeSelect == "pop") {
+      zcol <- "total_population"
     }
 
     zcol
   }
 
+  observeEvent(input$resetButton1, {
+    updateSelectInput(session, "areaSelect1",
+      selected = "Near West Side"
+    )
+    updateSelectInput(session, "monthSelect1",
+      selected = "All"
+    )
+    updateSelectInput(session, "buildingSelect1",
+      selected = "All"
+    )
+    updateSelectInput(session, "typeSelect1",
+      selected = "kwh"
+    )
+  })
+
+  observeEvent(input$resetButton2, {
+    updateSelectInput(session, "areaSelect2",
+      selected = "Loop"
+    )
+    updateSelectInput(session, "monthSelect2",
+      selected = "All"
+    )
+    updateSelectInput(session, "buildingSelect2",
+      selected = "All"
+    )
+    updateSelectInput(session, "typeSelect2",
+      selected = "kwh"
+    )
+  })
+
   activeArea1 <- reactive({
     toReturn <- NULL
 
     active_energy_area <- subset(energy, area_name == input$areaSelect1)
+
+    if (input$buildingSelect1 != "All") {
+      active_energy_area <- subset(active_energy_area, building_type == input$buildingSelect1)
+    }
+
     active_blocks <- subset(blocks, GEOID10 %in% active_energy_area$census_block)
 
     toReturn <- merge(x=active_blocks, y=active_energy_area, by.x=c("GEOID10"), by.y=c("census_block"), all.y=TRUE)
 
-    mapview(toReturn, zcol = determine())
+    mapview(toReturn, zcol = determine_zcol(1))
   })
 
   activeArea2 <- reactive({
     toReturn <- NULL
 
     active_energy_area <- subset(energy, area_name == input$areaSelect2)
+
+    if (input$buildingSelect2 != "All") {
+      active_energy_area <- subset(active_energy_area, building_type == input$buildingSelect2)
+    }
+
     active_blocks <- subset(blocks, GEOID10 %in% active_energy_area$census_block)
 
     toReturn <- merge(x=active_blocks, y=active_energy_area, by.x=c("GEOID10"), by.y=c("census_block"), all.y=TRUE)
 
-    mapview(toReturn, zcol = "therm_toal")
+    mapview(toReturn, zcol = determine_zcol(2))
   })
 
   # Mapviews
