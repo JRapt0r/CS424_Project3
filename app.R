@@ -117,8 +117,6 @@ ui <- fluidPage(
             ),
             fluidRow(column(6, selectInput(inputId="buildingSelect1", width="100%", label="Building type", choices=c("All", "Commercial", "Industrial", "Residential"), selected="All")),
                      column(6, selectInput(inputId="typeSelect1", width="100%", label="Source", choices=c("Energy" = "kwh", "Gas" = "gas", "Population" = "pop", "Building height" = "height", "Building size" = "size", "Building age" = "age"), selected="kwh"))),
-            mapviewOutput("areaMap1", height="calc(100vh - 245px)"),
-            absolutePanel(top = 90, left=25, actionButton("resetButton1", "Reset Map")),
           ),
           column(6,
             fluidRow(column(6,
@@ -205,9 +203,44 @@ ui <- fluidPage(
             ),
             fluidRow(column(6, selectInput(inputId="buildingSelect2", width="100%", label="Building type", choices=c("All", "Commercial", "Industrial", "Residential"), selected="All")),
                      column(6, selectInput(inputId="typeSelect2", width="100%", label="Source", choices=c("Energy" = "kwh", "Gas" = "gas", "Population" = "pop", "Building height" = "height", "Building size" = "size", "Building age" = "age"), selected="kwh"))),
-            mapviewOutput("areaMap2", height="calc(100vh - 245px)"),
-            absolutePanel(top = 180, left=25, actionButton("resetButton2", "Reset Map"))
-          )
+          ),
+          tabsetPanel(
+            id = 'dataset',
+            tabPanel("Maps",
+              fluidRow(
+                column(6,
+                  mapviewOutput("areaMap1", height="70vh"),
+                  absolutePanel(top = 25, left=25, actionButton("resetButton1", "Reset Map"))
+                ),
+                column(6,
+                  mapviewOutput("areaMap2", height="70vh"),
+                  absolutePanel(top = 25, left=25, actionButton("resetButton2", "Reset Map"))
+                )
+              )
+            ),
+            tabPanel("Bar/line charts",
+              fluidRow(
+                column(6,
+                        plotOutput("line0"),
+                        plotOutput("bar0")
+                ),
+                column(6,
+                        plotOutput("line1"),
+                        plotOutput("bar1")
+                )
+              )
+            ),
+            tabPanel("Datatable",
+              fluidRow(
+                column(6,
+                  DT::dataTableOutput("table0")
+                ),
+                column(6,
+                  DT::dataTableOutput("table1")
+                )
+                )
+              )
+            )
         )
     ),
   tabPanel("About",
@@ -392,6 +425,36 @@ server <- function(input, output, session) {
     mapview(toReturn, zcol = determine_zcol(1))
   })
 
+  filterBlocks <- function(inputVal) {
+    monthSelect <- input$monthSelect1
+    typeSelect <- input$typeSelect1
+    areaSelect <- input$areaSelect1
+    buildingSelect <- input$buildingSelect1
+
+    if (inputVal == 1) {
+      monthSelect <- input$monthSelect1
+      typeSelect <- input$typeSelect1
+      areaSelect <- input$areaSelect1
+      buildingSelect <- input$buildingSelect1
+    }
+    else {
+      monthSelect <- input$monthSelect2
+      typeSelect <- input$typeSelect2
+      areaSelect <- input$areaSelect2
+      buildingSelect <- input$buildingSelect2
+    }
+
+    active_energy_area <- subset(energy, area_name == areaSelect)
+
+    if (input$buildingSelect2 != "All") {
+      active_energy_area <- subset(active_energy_area, building_type == buildingSelect)
+    }
+
+    active_blocks <- subset(blocks, GEOID10 %in% active_energy_area$census_block)
+
+    active_blocks
+  }
+
   activeArea2 <- reactive({
     toReturn <- NULL
 
@@ -406,6 +469,75 @@ server <- function(input, output, session) {
     toReturn <- merge(x=active_blocks, y=active_energy_area, by.x=c("GEOID10"), by.y=c("census_block"), all.y=TRUE)
 
     mapview(toReturn, zcol = determine_zcol(2))
+  })
+
+  plotData1 <- reactive({
+    active <- filterBlocks(2)
+    months <- c("January","February","March","April","May","June","July","August","September","October","November","December")
+
+    kwh <- c(sum(active$kwh_january, na.rm = TRUE),
+             sum(active$kwh_february, na.rm = TRUE),
+             sum(active$kwh_march, na.rm = TRUE),
+             sum(active$kwh_april, na.rm = TRUE),
+             sum(active$kwh_may, na.rm = TRUE),
+             sum(active$kwh_june, na.rm = TRUE),
+             sum(active$kwh_july, na.rm = TRUE),
+             sum(active$kwh_august, na.rm = TRUE),
+             sum(active$kwh_september, na.rm = TRUE),
+             sum(active$kwh_october, na.rm = TRUE),
+             sum(active$kwh_november, na.rm = TRUE),
+             sum(active$khw_december, na.rm = TRUE))
+
+    toReturn <- data.frame(months, kwh)
+
+    toReturn
+  })
+
+  plotData0 <- reactive({
+    active <- filterBlocks(1)
+    months <- c("January","February","March","April","May","June","July","August","September","October","November","December")
+
+    kwh <- c(sum(active$kwh_january, na.rm = TRUE),
+             sum(active$kwh_february, na.rm = TRUE),
+             sum(active$kwh_march, na.rm = TRUE),
+             sum(active$kwh_april, na.rm = TRUE),
+             sum(active$kwh_may, na.rm = TRUE),
+             sum(active$kwh_june, na.rm = TRUE),
+             sum(active$kwh_july, na.rm = TRUE),
+             sum(active$kwh_august, na.rm = TRUE),
+             sum(active$kwh_september, na.rm = TRUE),
+             sum(active$kwh_october, na.rm = TRUE),
+             sum(active$kwh_november, na.rm = TRUE),
+             sum(active$khw_december, na.rm = TRUE))
+
+    toReturn <- data.frame(months, kwh)
+
+    toReturn
+  })
+
+  # Line/bar graphs
+  # output$line0 <- renderPlot({
+  #   ggplot(data=justOneEnergySourcePercentageReactive2(), aes(x = year, y = yearly_percentage, fill=energySource))+
+  #     geom_bar(stat="identity")+
+  #     labs(title="Energy Contribution", subtitle="as Percentage of Total", x = "Year", y = "Percent contributed")+
+  #     scale_y_continuous(labels=scales::percent)+
+  #     scale_fill_manual(name = "Energy Sources", values = myColors)
+  # })
+
+  output$line0 <- renderPlot({
+    ggplot(data=plotData0(), aes(x = months, y = kwh)) +
+    geom_bar(stat="identity")+
+    labs(title="Energy Contribution", subtitle="(in billion Mwh)", x = "Year", y = "Energy Generated\n(in billion Mwh)")+
+    scale_y_continuous(labels = function(x) format(x, scientific = FALSE))+
+    scale_fill_manual(name = "Energy Sources", values = myColors)
+  })
+
+  output$line1 <- renderPlot({
+    ggplot(data=plotData1(), aes(x = months, y = kwh)) +
+    geom_bar(stat="identity")+
+    labs(title="Energy Contribution", subtitle="(in billion Mwh)", x = "Year", y = "Energy Generated\n(in billion Mwh)")+
+    scale_y_continuous(labels = function(x) format(x, scientific = FALSE))+
+    scale_fill_manual(name = "Energy Sources", values = myColors)
   })
 
   # Mapviews
