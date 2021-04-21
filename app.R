@@ -10,20 +10,13 @@ library(tigris)
 library(leaflet)
 
 # Read in compressed data
-energy <- read.csv(file = "data/Energy_Usage_2010_.csv", sep = ",", header=TRUE)
+energy <- read.csv(file = "data/Energy_Usage_2010_Cleaned.csv", sep = ",", header=TRUE)
 
 # Get blocks for Cook county
 blocks <- blocks(state = 'IL', county = 'Cook')
 
 # Get only the blocks we need
 chicago_blocks <- subset(blocks, GEOID10 %in% energy$census_block)
-
-# Get NWS
-nws <- subset(energy, area_name == "Near West Side")
-
-# Get NWS blocks
-nws_blocks <- subset(blocks, GEOID10 %in% nws$census_block)
-
 
 ui <- fluidPage(
     title = "CS 424: Project 3",
@@ -218,25 +211,27 @@ ui <- fluidPage(
                 )
               )
             ),
-            tabPanel("Bar/line charts",
+            tabPanel("Bar charts",
               fluidRow(
                 column(6,
-                        plotOutput("line0"),
-                        plotOutput("bar0")
+                        plotOutput("bar0"),
+                        plotOutput("bar3")
                 ),
                 column(6,
-                        plotOutput("line1"),
-                        plotOutput("bar1")
+                        plotOutput("bar1"),
+                        plotOutput("bar4")
                 )
               )
             ),
             tabPanel("Datatable",
               fluidRow(
                 column(6,
-                  DT::dataTableOutput("table0")
+                  DT::dataTableOutput("table0"),
+                  DT::dataTableOutput("table3")
                 ),
                 column(6,
-                  DT::dataTableOutput("table1")
+                  DT::dataTableOutput("table1"),
+                  DT::dataTableOutput("table4")
                 )
                 )
               )
@@ -252,9 +247,6 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   determine_zcol <- function(inputVal) {
-    monthSelect <- input$monthSelect1
-    typeSelect <- input$typeSelect1
-
     if (inputVal == 1) {
       monthSelect <- input$monthSelect1
       typeSelect <- input$typeSelect1
@@ -426,11 +418,6 @@ server <- function(input, output, session) {
   })
 
   filterBlocks <- function(inputVal) {
-    monthSelect <- input$monthSelect1
-    typeSelect <- input$typeSelect1
-    areaSelect <- input$areaSelect1
-    buildingSelect <- input$buildingSelect1
-
     if (inputVal == 1) {
       monthSelect <- input$monthSelect1
       typeSelect <- input$typeSelect1
@@ -452,7 +439,8 @@ server <- function(input, output, session) {
 
     active_blocks <- subset(blocks, GEOID10 %in% active_energy_area$census_block)
 
-    active_blocks
+    toReturn <- merge(x=active_blocks, y=active_energy_area, by.x=c("GEOID10"), by.y=c("census_block"), all.y=TRUE)
+    toReturn
   }
 
   activeArea2 <- reactive({
@@ -469,28 +457,6 @@ server <- function(input, output, session) {
     toReturn <- merge(x=active_blocks, y=active_energy_area, by.x=c("GEOID10"), by.y=c("census_block"), all.y=TRUE)
 
     mapview(toReturn, zcol = determine_zcol(2))
-  })
-
-  plotData1 <- reactive({
-    active <- filterBlocks(2)
-    months <- c("January","February","March","April","May","June","July","August","September","October","November","December")
-
-    kwh <- c(sum(active$kwh_january, na.rm = TRUE),
-             sum(active$kwh_february, na.rm = TRUE),
-             sum(active$kwh_march, na.rm = TRUE),
-             sum(active$kwh_april, na.rm = TRUE),
-             sum(active$kwh_may, na.rm = TRUE),
-             sum(active$kwh_june, na.rm = TRUE),
-             sum(active$kwh_july, na.rm = TRUE),
-             sum(active$kwh_august, na.rm = TRUE),
-             sum(active$kwh_september, na.rm = TRUE),
-             sum(active$kwh_october, na.rm = TRUE),
-             sum(active$kwh_november, na.rm = TRUE),
-             sum(active$khw_december, na.rm = TRUE))
-
-    toReturn <- data.frame(months, kwh)
-
-    toReturn
   })
 
   plotData0 <- reactive({
@@ -515,29 +481,108 @@ server <- function(input, output, session) {
     toReturn
   })
 
-  # Line/bar graphs
-  # output$line0 <- renderPlot({
-  #   ggplot(data=justOneEnergySourcePercentageReactive2(), aes(x = year, y = yearly_percentage, fill=energySource))+
-  #     geom_bar(stat="identity")+
-  #     labs(title="Energy Contribution", subtitle="as Percentage of Total", x = "Year", y = "Percent contributed")+
-  #     scale_y_continuous(labels=scales::percent)+
-  #     scale_fill_manual(name = "Energy Sources", values = myColors)
-  # })
+  plotData1 <- reactive({
+    active <- filterBlocks(2)
+    months <- c("January","February","March","April","May","June","July","August","September","October","November","December")
 
-  output$line0 <- renderPlot({
-    ggplot(data=plotData0(), aes(x = months, y = kwh)) +
-    geom_bar(stat="identity")+
-    labs(title="Energy Contribution", subtitle="(in billion Mwh)", x = "Year", y = "Energy Generated\n(in billion Mwh)")+
-    scale_y_continuous(labels = function(x) format(x, scientific = FALSE))+
-    scale_fill_manual(name = "Energy Sources", values = myColors)
+    kwh <- c(sum(active$kwh_january, na.rm = TRUE),
+             sum(active$kwh_february, na.rm = TRUE),
+             sum(active$kwh_march, na.rm = TRUE),
+             sum(active$kwh_april, na.rm = TRUE),
+             sum(active$kwh_may, na.rm = TRUE),
+             sum(active$kwh_june, na.rm = TRUE),
+             sum(active$kwh_july, na.rm = TRUE),
+             sum(active$kwh_august, na.rm = TRUE),
+             sum(active$kwh_september, na.rm = TRUE),
+             sum(active$kwh_october, na.rm = TRUE),
+             sum(active$kwh_november, na.rm = TRUE),
+             sum(active$khw_december, na.rm = TRUE))
+
+    toReturn <- data.frame(months, kwh)
+
+    toReturn
   })
 
-  output$line1 <- renderPlot({
-    ggplot(data=plotData1(), aes(x = months, y = kwh)) +
-    geom_bar(stat="identity")+
-    labs(title="Energy Contribution", subtitle="(in billion Mwh)", x = "Year", y = "Energy Generated\n(in billion Mwh)")+
-    scale_y_continuous(labels = function(x) format(x, scientific = FALSE))+
-    scale_fill_manual(name = "Energy Sources", values = myColors)
+  plotData3 <- reactive({
+    active <- filterBlocks(1)
+    months <- c("January","February","March","April","May","June","July","August","September","October","November","December")
+
+    therm <- c(sum(active$therm_january, na.rm = TRUE),
+               sum(active$therm_february, na.rm = TRUE),
+               sum(active$therm_march, na.rm = TRUE),
+               sum(active$therm_april, na.rm = TRUE),
+               sum(active$therm_may, na.rm = TRUE),
+               sum(active$therm_june, na.rm = TRUE),
+               sum(active$therm_july, na.rm = TRUE),
+               sum(active$therm_august, na.rm = TRUE),
+               sum(active$therm_september, na.rm = TRUE),
+               sum(active$therm_october, na.rm = TRUE),
+               sum(active$therm_november, na.rm = TRUE),
+               sum(active$therm_december, na.rm = TRUE))
+
+    toReturn <- data.frame(months, therm)
+
+    toReturn
+  })
+
+  plotData4 <- reactive({
+    active <- filterBlocks(2)
+    months <- c("January","February","March","April","May","June","July","August","September","October","November","December")
+
+    therm <- c(sum(active$therm_january, na.rm = TRUE),
+               sum(active$therm_february, na.rm = TRUE),
+               sum(active$therm_march, na.rm = TRUE),
+               sum(active$therm_april, na.rm = TRUE),
+               sum(active$therm_may, na.rm = TRUE),
+               sum(active$therm_june, na.rm = TRUE),
+               sum(active$therm_july, na.rm = TRUE),
+               sum(active$therm_august, na.rm = TRUE),
+               sum(active$therm_september, na.rm = TRUE),
+               sum(active$therm_october, na.rm = TRUE),
+               sum(active$therm_november, na.rm = TRUE),
+               sum(active$therm_december, na.rm = TRUE))
+
+    toReturn <- data.frame(months, therm)
+
+    toReturn
+  })
+
+  # Bar charts
+  output$bar0 <- renderPlot({
+    ggplot(data=plotData0(), aes(x = factor(months, levels=(months)), y = kwh)) +
+    geom_bar(stat="identity", fill="#4FC3F7", colour="#01579B")+
+    labs(title="Monthly Energy usage", x = "Month", y = "Energy used (kWh)")+
+    scale_y_continuous(labels = function(x) format(x, big.mark=",", scientific = FALSE))
+  })
+
+  output$bar1 <- renderPlot({
+    ggplot(data=plotData1(), aes(x = factor(months, levels=(months)), y = kwh)) +
+    geom_bar(stat="identity", fill="#4FC3F7", colour="#01579B")+
+    labs(title="Monthly Energy usage", x = "Month", y = "Energy used (kWh)")+
+    scale_y_continuous(labels = function(x) format(x, big.mark=",", scientific = FALSE))
+  })
+
+  # Line charts
+  output$bar3 <- renderPlot({
+    ggplot(data=plotData3(), aes(x = factor(months, levels=(months)), y = therm)) +
+    geom_bar(stat="identity", fill="#FFB74D", colour="#E65100")+
+    labs(title="Monthly gas usage", x = "Month", y = "Gas used")+
+    scale_y_continuous(labels = function(x) format(x, big.mark=",", scientific = FALSE))
+    # ggplot(data=plotData0(), aes(x = factor(months, levels=(months)), y = kwh))+
+    # stat_summary(fun="sum", geom="line", size=1.0, show.legend=TRUE, colour="#ff6600")+
+    # labs(title="Energy Usage Over Time", x = "Month", y = "Energy usage (kWh)")+
+    # scale_y_continuous(labels = function(x) format(x, big.mark=",", scientific = FALSE))
+  })
+
+  output$bar4 <- renderPlot({
+    ggplot(data=plotData4(), aes(x = factor(months, levels=(months)), y = therm)) +
+    geom_bar(stat="identity", fill="#FFB74D", colour="#E65100")+
+    labs(title="Monthly gas usage", x = "Month", y = "Gas used")+
+    scale_y_continuous(labels = function(x) format(x, big.mark=",", scientific = FALSE))
+    # ggplot(data=plotData0(), aes(x = factor(months, levels=(months)), y = kwh))+
+    # stat_summary(fun="sum", geom="line", size=1.0, show.legend=TRUE, colour="#ff6600")+
+    # labs(title="Energy Usage Over Time", x = "Month", y = "Energy usage (kWh)")+
+    # scale_y_continuous(labels = function(x) format(x, big.mark=",", scientific = FALSE))
   })
 
   # Mapviews
@@ -549,6 +594,98 @@ server <- function(input, output, session) {
   output$areaMap2 <- renderLeaflet({
     m2 <- activeArea2()
     m2@map
+  })
+
+  output$table0 <- DT::renderDataTable({
+    active <- filterBlocks(1)
+    months <- c("January","February","March","April","May","June","July","August","September","October","November","December")
+
+    kwh <- c(sum(active$kwh_january, na.rm = TRUE),
+             sum(active$kwh_february, na.rm = TRUE),
+             sum(active$kwh_march, na.rm = TRUE),
+             sum(active$kwh_april, na.rm = TRUE),
+             sum(active$kwh_may, na.rm = TRUE),
+             sum(active$kwh_june, na.rm = TRUE),
+             sum(active$kwh_july, na.rm = TRUE),
+             sum(active$kwh_august, na.rm = TRUE),
+             sum(active$kwh_september, na.rm = TRUE),
+             sum(active$kwh_october, na.rm = TRUE),
+             sum(active$kwh_november, na.rm = TRUE),
+             sum(active$khw_december, na.rm = TRUE))
+
+    data <- data.frame(months, kwh)
+
+    names(data) <- c("Month", "Electrical usage (kWh)")
+    DT::datatable(data, options = list(orderClasses = TRUE, pageLength = 9))
+  })
+
+  output$table3 <- DT::renderDataTable({
+    active <- filterBlocks(1)
+    months <- c("January","February","March","April","May","June","July","August","September","October","November","December")
+
+    kwh <- c(sum(active$therm_january, na.rm = TRUE),
+             sum(active$therm_february, na.rm = TRUE),
+             sum(active$therm_march, na.rm = TRUE),
+             sum(active$therm_april, na.rm = TRUE),
+             sum(active$therm_may, na.rm = TRUE),
+             sum(active$therm_june, na.rm = TRUE),
+             sum(active$therm_july, na.rm = TRUE),
+             sum(active$therm_august, na.rm = TRUE),
+             sum(active$therm_september, na.rm = TRUE),
+             sum(active$therm_october, na.rm = TRUE),
+             sum(active$therm_november, na.rm = TRUE),
+             sum(active$therm_december, na.rm = TRUE))
+
+    data <- data.frame(months, kwh)
+
+    names(data) <- c("Month", "Gas usage")
+    DT::datatable(data, options = list(orderClasses = TRUE, pageLength = 9))
+  })
+
+  output$table1 <- DT::renderDataTable({
+    active <- filterBlocks(2)
+    months <- c("January","February","March","April","May","June","July","August","September","October","November","December")
+
+    kwh <- c(sum(active$kwh_january, na.rm = TRUE),
+             sum(active$kwh_february, na.rm = TRUE),
+             sum(active$kwh_march, na.rm = TRUE),
+             sum(active$kwh_april, na.rm = TRUE),
+             sum(active$kwh_may, na.rm = TRUE),
+             sum(active$kwh_june, na.rm = TRUE),
+             sum(active$kwh_july, na.rm = TRUE),
+             sum(active$kwh_august, na.rm = TRUE),
+             sum(active$kwh_september, na.rm = TRUE),
+             sum(active$kwh_october, na.rm = TRUE),
+             sum(active$kwh_november, na.rm = TRUE),
+             sum(active$khw_december, na.rm = TRUE))
+
+    data <- data.frame(months, kwh)
+
+    names(data) <- c("Month", "Electrical usage (kWh)")
+    DT::datatable(data, options = list(orderClasses = TRUE, pageLength = 9))
+  })
+
+  output$table4 <- DT::renderDataTable({
+    active <- filterBlocks(2)
+    months <- c("January","February","March","April","May","June","July","August","September","October","November","December")
+
+    kwh <- c(sum(active$therm_january, na.rm = TRUE),
+             sum(active$therm_february, na.rm = TRUE),
+             sum(active$therm_march, na.rm = TRUE),
+             sum(active$therm_april, na.rm = TRUE),
+             sum(active$therm_may, na.rm = TRUE),
+             sum(active$therm_june, na.rm = TRUE),
+             sum(active$therm_july, na.rm = TRUE),
+             sum(active$therm_august, na.rm = TRUE),
+             sum(active$therm_september, na.rm = TRUE),
+             sum(active$therm_october, na.rm = TRUE),
+             sum(active$therm_november, na.rm = TRUE),
+             sum(active$therm_december, na.rm = TRUE))
+
+    data <- data.frame(months, kwh)
+
+    names(data) <- c("Month", "Gas usage")
+    DT::datatable(data, options = list(orderClasses = TRUE, pageLength = 9))
   })
 
   # About page
