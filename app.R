@@ -2,21 +2,22 @@
 # CS 424 Project 3
 
 # Load libraries
-library(shiny)
-library(shinydashboard)
-library(ggplot2)
-library(mapview)
-library(tigris)
-library(leaflet)
+# library(shiny)
+# library(shinydashboard)
+# library(ggplot2)
+# library(mapview)
+# library(tigris)
+# library(leaflet)
+# library(RColorBrewer)
 
 # Read in compressed data
-energy <- read.csv(file = "data/Energy_Usage_2010_Cleaned.csv", sep = ",", header=TRUE)
+# energy <- read.csv(file = "data/Energy_Usage_2010_Cleaned.csv", sep = ",", header=TRUE)
 
 # Get blocks for Cook county
-blocks <- blocks(state = 'IL', county = 'Cook')
+# blocks <- blocks(state = 'IL', county = 'Cook')
 
 # Get only the blocks we need
-chicago_blocks <- subset(blocks, GEOID10 %in% energy$census_block)
+# chicago_blocks <- subset(blocks, GEOID10 %in% energy$census_block)
 
 ui <- fluidPage(
     title = "CS 424: Project 3",
@@ -203,11 +204,11 @@ ui <- fluidPage(
               fluidRow(
                 column(6,
                   mapviewOutput("areaMap1", height="70vh"),
-                  absolutePanel(top = 25, left=25, actionButton("resetButton1", "Reset Map"))
+                  absolutePanel(bottom = 60, left=25, actionButton("resetButton1", "Reset Map"))
                 ),
                 column(6,
                   mapviewOutput("areaMap2", height="70vh"),
-                  absolutePanel(top = 25, left=25, actionButton("resetButton2", "Reset Map"))
+                  absolutePanel(bottom = 60, left=25, actionButton("resetButton2", "Reset Map"))
                 )
               )
             ),
@@ -227,17 +228,20 @@ ui <- fluidPage(
               fluidRow(
                 column(6,
                   DT::dataTableOutput("table0"),
-                  DT::dataTableOutput("table3")
                 ),
                 column(6,
                   DT::dataTableOutput("table1"),
-                  DT::dataTableOutput("table4")
                 )
                 )
               )
             )
         )
     ),
+  tabPanel("City Overview",
+    verbatimTextOutput("name1"),
+    verbatimTextOutput("date2"),
+    verbatimTextOutput("dataset1")
+  ),
   tabPanel("About",
     verbatimTextOutput("name"),
     verbatimTextOutput("date"),
@@ -247,22 +251,30 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   determine_zcol <- function(inputVal) {
+    monthSelect <- NULL
+    typeSelect <- NULL
+
     if (inputVal == 1) {
       monthSelect <- input$monthSelect1
       typeSelect <- input$typeSelect1
     }
-    else {
+    else if (inputVal == 2)  {
       monthSelect <- input$monthSelect2
       typeSelect <- input$typeSelect2
     }
 
-    zcol <- "kwh_total"
+    if (typeSelect == "gas") {
+      zcol <- "therm_total"
+    }
+    else {
+      zcol <- "kwh_total"
+    }
 
     if (monthSelect == "Jan") {
         if (typeSelect == "gas") {
             zcol <- "therm_january"
         }
-        else {
+        else if (typeSelect == "kwh") {
             zcol <- "kwh_january"
         }
     }
@@ -401,62 +413,98 @@ server <- function(input, output, session) {
     )
   })
 
-  activeArea1 <- reactive({
-    toReturn <- NULL
-
-    active_energy_area <- subset(energy, area_name == input$areaSelect1)
-
-    if (input$buildingSelect1 != "All") {
-      active_energy_area <- subset(active_energy_area, building_type == input$buildingSelect1)
-    }
-
-    active_blocks <- subset(blocks, GEOID10 %in% active_energy_area$census_block)
-
-    toReturn <- merge(x=active_blocks, y=active_energy_area, by.x=c("GEOID10"), by.y=c("census_block"), all.y=TRUE)
-
-    mapview(toReturn, zcol = determine_zcol(1))
-  })
-
   filterBlocks <- function(inputVal) {
+    toReturn <- NULL
+    active_energy_area <- NULL
+    active_blocks <- NULL
+
+    monthSelect <- NULL
+    typeSelect <- NULL
+    areaSelect <- NULL
+    buildingSelect <- NULL
+
+    # Select correct inputs
     if (inputVal == 1) {
       monthSelect <- input$monthSelect1
       typeSelect <- input$typeSelect1
       areaSelect <- input$areaSelect1
       buildingSelect <- input$buildingSelect1
     }
-    else {
+    else if (inputVal == 2) {
       monthSelect <- input$monthSelect2
       typeSelect <- input$typeSelect2
       areaSelect <- input$areaSelect2
       buildingSelect <- input$buildingSelect2
     }
 
+    # Filter energy by area
     active_energy_area <- subset(energy, area_name == areaSelect)
 
-    if (input$buildingSelect2 != "All") {
+    #
+    if (buildingSelect != "All") {
       active_energy_area <- subset(active_energy_area, building_type == buildingSelect)
     }
 
     active_blocks <- subset(blocks, GEOID10 %in% active_energy_area$census_block)
-
     toReturn <- merge(x=active_blocks, y=active_energy_area, by.x=c("GEOID10"), by.y=c("census_block"), all.y=TRUE)
+
     toReturn
   }
 
-  activeArea2 <- reactive({
-    toReturn <- NULL
-
-    active_energy_area <- subset(energy, area_name == input$areaSelect2)
-
-    if (input$buildingSelect2 != "All") {
-      active_energy_area <- subset(active_energy_area, building_type == input$buildingSelect2)
+  formatName <- function(inputVal) {
+    # Select correct inputs
+    if (inputVal == 1) {
+      monthSelect <- input$monthSelect1
+      typeSelect <- input$typeSelect1
+      areaSelect <- input$areaSelect1
+      buildingSelect <- input$buildingSelect1
+    }
+    else if (inputVal == 2) {
+      monthSelect <- input$monthSelect2
+      typeSelect <- input$typeSelect2
+      areaSelect <- input$areaSelect2
+      buildingSelect <- input$buildingSelect2
     }
 
-    active_blocks <- subset(blocks, GEOID10 %in% active_energy_area$census_block)
+    label <- NULL
 
-    toReturn <- merge(x=active_blocks, y=active_energy_area, by.x=c("GEOID10"), by.y=c("census_block"), all.y=TRUE)
+    if (typeSelect == "kwh") {
+      label <- "Energy usage"
+    }
+    else if (typeSelect == "gas") {
+      label <- "Gas usage"
+    }
+    else if (typeSelect == "age") {
+      label <- "Building age"
+    }
+    else if (typeSelect == "height") {
+      label <- "Building height"
+    }
+    else if (typeSelect == "size") {
+      label <- "Building size"
+    }
+    else if (typeSelect == "pop") {
+      label <- "Building population"
+    }
 
-    mapview(toReturn, zcol = determine_zcol(2))
+    if (inputVal == 1) {
+      formattedName <- stringr::str_interp("${label}.")
+    }
+    else {
+      formattedName <- stringr::str_interp("${label}")
+    }
+
+    formattedName
+  }
+
+  activeArea1 <- reactive({
+    toReturn <- filterBlocks(1)
+    mapview(toReturn, zcol = determine_zcol(1), layer.name=formatName(1), basemaps=c("CartoDB.Positron","CartoDB.DarkMatter","OpenStreetMap", "Esri.WorldImagery","OpenTopoMap"))
+  })
+
+  activeArea2 <- reactive({
+    toReturn <- filterBlocks(2)
+    mapview(toReturn, zcol = determine_zcol(2), layer.name=formatName(2), basemaps=c("CartoDB.Positron","CartoDB.DarkMatter","OpenStreetMap", "Esri.WorldImagery","OpenTopoMap"))
   })
 
   plotData0 <- reactive({
@@ -562,16 +610,11 @@ server <- function(input, output, session) {
     scale_y_continuous(labels = function(x) format(x, big.mark=",", scientific = FALSE))
   })
 
-  # Line charts
   output$bar3 <- renderPlot({
     ggplot(data=plotData3(), aes(x = factor(months, levels=(months)), y = therm)) +
     geom_bar(stat="identity", fill="#FFB74D", colour="#E65100")+
     labs(title="Monthly gas usage", x = "Month", y = "Gas used")+
     scale_y_continuous(labels = function(x) format(x, big.mark=",", scientific = FALSE))
-    # ggplot(data=plotData0(), aes(x = factor(months, levels=(months)), y = kwh))+
-    # stat_summary(fun="sum", geom="line", size=1.0, show.legend=TRUE, colour="#ff6600")+
-    # labs(title="Energy Usage Over Time", x = "Month", y = "Energy usage (kWh)")+
-    # scale_y_continuous(labels = function(x) format(x, big.mark=",", scientific = FALSE))
   })
 
   output$bar4 <- renderPlot({
@@ -579,10 +622,6 @@ server <- function(input, output, session) {
     geom_bar(stat="identity", fill="#FFB74D", colour="#E65100")+
     labs(title="Monthly gas usage", x = "Month", y = "Gas used")+
     scale_y_continuous(labels = function(x) format(x, big.mark=",", scientific = FALSE))
-    # ggplot(data=plotData0(), aes(x = factor(months, levels=(months)), y = kwh))+
-    # stat_summary(fun="sum", geom="line", size=1.0, show.legend=TRUE, colour="#ff6600")+
-    # labs(title="Energy Usage Over Time", x = "Month", y = "Energy usage (kWh)")+
-    # scale_y_continuous(labels = function(x) format(x, big.mark=",", scientific = FALSE))
   })
 
   # Mapviews
@@ -613,33 +652,23 @@ server <- function(input, output, session) {
              sum(active$kwh_november, na.rm = TRUE),
              sum(active$khw_december, na.rm = TRUE))
 
-    data <- data.frame(months, kwh)
+    therm <- c(sum(active$therm_january, na.rm = TRUE),
+               sum(active$therm_february, na.rm = TRUE),
+               sum(active$therm_march, na.rm = TRUE),
+               sum(active$therm_april, na.rm = TRUE),
+               sum(active$therm_may, na.rm = TRUE),
+               sum(active$therm_june, na.rm = TRUE),
+               sum(active$therm_july, na.rm = TRUE),
+               sum(active$therm_august, na.rm = TRUE),
+               sum(active$therm_september, na.rm = TRUE),
+               sum(active$therm_october, na.rm = TRUE),
+               sum(active$therm_november, na.rm = TRUE),
+               sum(active$therm_december, na.rm = TRUE))
 
-    names(data) <- c("Month", "Electrical usage (kWh)")
-    DT::datatable(data, options = list(orderClasses = TRUE, pageLength = 9))
-  })
+    data <- data.frame(months, format(therm, big.mark=",", scientific = FALSE), format(kwh, big.mark=",", scientific = FALSE))
 
-  output$table3 <- DT::renderDataTable({
-    active <- filterBlocks(1)
-    months <- c("January","February","March","April","May","June","July","August","September","October","November","December")
-
-    kwh <- c(sum(active$therm_january, na.rm = TRUE),
-             sum(active$therm_february, na.rm = TRUE),
-             sum(active$therm_march, na.rm = TRUE),
-             sum(active$therm_april, na.rm = TRUE),
-             sum(active$therm_may, na.rm = TRUE),
-             sum(active$therm_june, na.rm = TRUE),
-             sum(active$therm_july, na.rm = TRUE),
-             sum(active$therm_august, na.rm = TRUE),
-             sum(active$therm_september, na.rm = TRUE),
-             sum(active$therm_october, na.rm = TRUE),
-             sum(active$therm_november, na.rm = TRUE),
-             sum(active$therm_december, na.rm = TRUE))
-
-    data <- data.frame(months, kwh)
-
-    names(data) <- c("Month", "Gas usage")
-    DT::datatable(data, options = list(orderClasses = TRUE, pageLength = 9))
+    names(data) <- c("Month", "Gas usage", "Electrical usage (kWh)")
+    DT::datatable(data, options = list(orderClasses = TRUE, pageLength = 100))
   })
 
   output$table1 <- DT::renderDataTable({
@@ -659,33 +688,24 @@ server <- function(input, output, session) {
              sum(active$kwh_november, na.rm = TRUE),
              sum(active$khw_december, na.rm = TRUE))
 
-    data <- data.frame(months, kwh)
+    therm <- c(sum(active$therm_january, na.rm = TRUE),
+               sum(active$therm_february, na.rm = TRUE),
+               sum(active$therm_march, na.rm = TRUE),
+               sum(active$therm_april, na.rm = TRUE),
+               sum(active$therm_may, na.rm = TRUE),
+               sum(active$therm_june, na.rm = TRUE),
+               sum(active$therm_july, na.rm = TRUE),
+               sum(active$therm_august, na.rm = TRUE),
+               sum(active$therm_september, na.rm = TRUE),
+               sum(active$therm_october, na.rm = TRUE),
+               sum(active$therm_november, na.rm = TRUE),
+               sum(active$therm_december, na.rm = TRUE))
 
-    names(data) <- c("Month", "Electrical usage (kWh)")
-    DT::datatable(data, options = list(orderClasses = TRUE, pageLength = 9))
-  })
 
-  output$table4 <- DT::renderDataTable({
-    active <- filterBlocks(2)
-    months <- c("January","February","March","April","May","June","July","August","September","October","November","December")
+    data <- data.frame(months, format(therm, big.mark=",", scientific = FALSE), format(kwh, big.mark=",", scientific = FALSE))
 
-    kwh <- c(sum(active$therm_january, na.rm = TRUE),
-             sum(active$therm_february, na.rm = TRUE),
-             sum(active$therm_march, na.rm = TRUE),
-             sum(active$therm_april, na.rm = TRUE),
-             sum(active$therm_may, na.rm = TRUE),
-             sum(active$therm_june, na.rm = TRUE),
-             sum(active$therm_july, na.rm = TRUE),
-             sum(active$therm_august, na.rm = TRUE),
-             sum(active$therm_september, na.rm = TRUE),
-             sum(active$therm_october, na.rm = TRUE),
-             sum(active$therm_november, na.rm = TRUE),
-             sum(active$therm_december, na.rm = TRUE))
-
-    data <- data.frame(months, kwh)
-
-    names(data) <- c("Month", "Gas usage")
-    DT::datatable(data, options = list(orderClasses = TRUE, pageLength = 9))
+    names(data) <- c("Month", "Gas usage", "Electrical usage (kWh)")
+    DT::datatable(data, options = list(orderClasses = TRUE, pageLength = 100))
   })
 
   # About page
