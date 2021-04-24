@@ -43,7 +43,7 @@ tract_lookup$COUNTYFP <- NULL
 tract_lookup$STATEFP <- NULL
 
 # Add tract data to energy dataframe
-energy_with_tract <- merge(x=tract_lookup, y=energy, by.x=c("GEOID10"), by.y=c("census_block"), all.y=TRUE)
+energy <- merge(x=tract_lookup, y=energy, by.x=c("GEOID10"), by.y=c("census_block"), all.y=TRUE)
 
 ui <- fluidPage(
     title = "CS 424: Project 3",
@@ -267,11 +267,6 @@ ui <- fluidPage(
             )
         )
     ),
-  tabPanel("City Overview",
-    verbatimTextOutput("name1"),
-    verbatimTextOutput("date2"),
-    verbatimTextOutput("dataset1")
-  ),
   tabPanel("About",
     verbatimTextOutput("name"),
     verbatimTextOutput("date"),
@@ -471,27 +466,17 @@ server <- function(input, output, session) {
 
     # Filter energy by area
     if (areaSelect != "All") {
-      if ((inputVal == 1 && input$checkbox1 == TRUE) || (inputVal == 2 && input$checkbox2 == TRUE)) {
-        active_energy_area <- subset(energy_with_tract, area_name == areaSelect)
-      }
-      else {
-        active_energy_area <- subset(energy, area_name == areaSelect)
-      }
+      active_energy_area <- subset(energy, area_name == areaSelect)
     }
     else {
-      if ((inputVal == 1 && input$checkbox1 == TRUE) || (inputVal == 2 && input$checkbox2 == TRUE)) {
-        active_energy_area <- energy_with_tract
-      }
-      else {
-        active_energy_area <- energy
-      }
+      active_energy_area <- energy
     }
 
     if (buildingSelect != "All") {
       active_energy_area <- subset(active_energy_area, building_type == buildingSelect)
     }
 
-    active_blocks <- subset(blocks, GEOID10 %in% active_energy_area$census_block)
+    active_blocks <- subset(blocks, GEOID10 %in% active_energy_area$GEOID10)
 
     # Tract mode
     if (inputVal == 1 && input$checkbox1 == TRUE) {
@@ -501,7 +486,7 @@ server <- function(input, output, session) {
       toReturn <- aggregateData(determine_zcol(2), active_energy_area)
     }
     else {
-      toReturn <- merge(x=active_blocks, y=active_energy_area, by.x=c("GEOID10"), by.y=c("census_block"), all.y=TRUE)
+      toReturn <- merge(x=active_blocks, y=active_energy_area, by.x=c("GEOID10"), by.y=c("GEOID10"), all.y=TRUE)
     }
 
     toReturn
