@@ -2,22 +2,48 @@
 # CS 424 Project 3
 
 # Load libraries
-# library(shiny)
-# library(shinydashboard)
-# library(ggplot2)
-# library(mapview)
-# library(tigris)
-# library(leaflet)
-# library(RColorBrewer)
+library(shiny)
+library(shinydashboard)
+library(ggplot2)
+library(mapview)
+library(tigris)
+library(leaflet)
+library(RColorBrewer)
+library(dplyr)
 
 # Read in compressed data
-# energy <- read.csv(file = "data/Energy_Usage_2010_Cleaned.csv", sep = ",", header=TRUE)
+energy <- read.csv(file = "data/Energy_Usage_2010_Cleaned.csv", sep = ",", header=TRUE)
 
-# Get blocks for Cook county
-# blocks <- blocks(state = 'IL', county = 'Cook')
+# Get blocks/tracts for Cook county
+blocks <- blocks(state = 'IL', county = 'Cook')
+tracts <- tracts(state = 'IL', county = 'Cook')
 
-# Get only the blocks we need
-# chicago_blocks <- subset(blocks, GEOID10 %in% energy$census_block)
+# Get tracts/blocks we have data for (Chicago)
+chicago_blocks <- subset(blocks, GEOID10 %in% energy$census_block)
+chicago_tracts <- subset(tracts, TRACTCE %in% chicago_blocks$TRACTCE10)
+
+tract_lookup <- chicago_blocks
+
+# Remove unecessary columns
+tract_lookup$STATEFP10 <- NULL
+tract_lookup$COUNTYFP10 <- NULL
+tract_lookup$BLOCKCE10 <- NULL
+tract_lookup$NAME10 <- NULL
+tract_lookup$MTFCC10 <- NULL
+tract_lookup$UR10 <- NULL
+tract_lookup$UACE10 <- NULL
+tract_lookup$UATYPE <- NULL
+tract_lookup$FUNCSTAT10 <- NULL
+tract_lookup$ALAND10 <- NULL
+tract_lookup$AWATER10 <- NULL
+tract_lookup$INTPTLAT10 <- NULL
+tract_lookup$INTPTLON10 <- NULL
+tract_lookup$geometry <- NULL
+tract_lookup$COUNTYFP <- NULL
+tract_lookup$STATEFP <- NULL
+
+# Add tract data to energy dataframe
+energy_with_tract <- merge(x=tract_lookup, y=energy, by.x=c("GEOID10"), by.y=c("census_block"), all.y=TRUE)
 
 ui <- fluidPage(
     title = "CS 424: Project 3",
@@ -29,7 +55,8 @@ ui <- fluidPage(
           column(6,
             fluidRow(column(6,
               selectInput(inputId="areaSelect1", width="100%", label="Community area", choices=
-              c("Albany Park",
+              c("All",
+              "Albany Park",
               "Archer Heights",
               "Armour Square",
               "Ashburn",
@@ -115,7 +142,8 @@ ui <- fluidPage(
           column(6,
             fluidRow(column(6,
               selectInput(inputId="areaSelect2", width="100%", label="Community area", choices=
-              c("Albany Park",
+              c("All",
+              "Albany Park",
               "Archer Heights",
               "Armour Square",
               "Ashburn",
@@ -204,11 +232,13 @@ ui <- fluidPage(
               fluidRow(
                 column(6,
                   mapviewOutput("areaMap1", height="70vh"),
-                  absolutePanel(bottom = 60, left=25, actionButton("resetButton1", "Reset Map"))
+                  absolutePanel(bottom = 120, left = 25, actionButton("resetButton1", "Reset Map")),
+                  checkboxInput("checkbox1", "Census tract", value = FALSE)
                 ),
                 column(6,
                   mapviewOutput("areaMap2", height="70vh"),
-                  absolutePanel(bottom = 60, left=25, actionButton("resetButton2", "Reset Map"))
+                  absolutePanel(bottom = 120, left = 25, actionButton("resetButton2", "Reset Map")),
+                  checkboxInput("checkbox2", "Census tract", value = FALSE)
                 )
               )
             ),
@@ -396,6 +426,7 @@ server <- function(input, output, session) {
     updateSelectInput(session, "typeSelect1",
       selected = "kwh"
     )
+    updateCheckboxInput(session, "checkbox1", value = FALSE)
   })
 
   observeEvent(input$resetButton2, {
@@ -411,6 +442,7 @@ server <- function(input, output, session) {
     updateSelectInput(session, "typeSelect2",
       selected = "kwh"
     )
+    updateCheckboxInput(session, "checkbox2", value = FALSE)
   })
 
   filterBlocks <- function(inputVal) {
@@ -438,17 +470,73 @@ server <- function(input, output, session) {
     }
 
     # Filter energy by area
-    active_energy_area <- subset(energy, area_name == areaSelect)
+    if (areaSelect != "All") {
+      if ((inputVal == 1 && input$checkbox1 == TRUE) || (inputVal == 2 && input$checkbox2 == TRUE)) {
+        active_energy_area <- subset(energy_with_tract, area_name == areaSelect)
+      }
+      else {
+        active_energy_area <- subset(energy, area_name == areaSelect)
+      }
+    }
+    else {
+      if ((inputVal == 1 && input$checkbox1 == TRUE) || (inputVal == 2 && input$checkbox2 == TRUE)) {
+        active_energy_area <- energy_with_tract
+      }
+      else {
+        active_energy_area <- energy
+      }
+    }
 
-    #
     if (buildingSelect != "All") {
       active_energy_area <- subset(active_energy_area, building_type == buildingSelect)
     }
 
     active_blocks <- subset(blocks, GEOID10 %in% active_energy_area$census_block)
-    toReturn <- merge(x=active_blocks, y=active_energy_area, by.x=c("GEOID10"), by.y=c("census_block"), all.y=TRUE)
+
+    # Tract mode
+    if (inputVal == 1 && input$checkbox1 == TRUE) {
+      toReturn <- aggregateData(determine_zcol(1), active_energy_area)
+    }
+    else if (inputVal == 2 && input$checkbox2 == TRUE) {
+      toReturn <- aggregateData(determine_zcol(2), active_energy_area)
+    }
+    else {
+      toReturn <- merge(x=active_blocks, y=active_energy_area, by.x=c("GEOID10"), by.y=c("census_block"), all.y=TRUE)
+    }
 
     toReturn
+  }
+
+  aggregateData <- function(aggr_by, activeArea) {
+
+    # Remove non-aggregateable columns
+    activeArea$GEOID10 <- NULL
+    activeArea$area_name <- NULL
+    activeArea$building_type <- NULL
+
+    group <- NULL
+
+    if (aggr_by == "kwh_total") {
+      group <- aggregate(kwh_total ~ TRACTCE10, data = activeArea, sum)
+    }
+    else if (aggr_by == "therm_total") {
+      group <- aggregate(therm_total ~ TRACTCE10, data = activeArea, sum)
+    }
+    else if (aggr_by == "total_population") {
+      group <- aggregate(total_population ~ TRACTCE10, data = activeArea, sum)
+    }
+    else if (aggr_by == "building_height") {
+      group <- aggregate(building_height ~ TRACTCE10, data = activeArea, mean)
+    }
+    else if (aggr_by == "building_size"){
+      group <- aggregate(building_size ~ TRACTCE10, data = activeArea, mean)
+    }
+    else if (aggr_by == "building_age") {
+      group <- aggregate(building_age ~ TRACTCE10, data = activeArea, mean)
+    }
+
+    aggr_data <- merge(x=chicago_tracts, y=group, by.x=c("TRACTCE"), by.y=c("TRACTCE10"), all.y=TRUE)
+    aggr_data
   }
 
   formatName <- function(inputVal) {
