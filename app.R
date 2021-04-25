@@ -233,12 +233,14 @@ ui <- fluidPage(
                 column(6,
                   mapviewOutput("areaMap1", height="70vh"),
                   absolutePanel(bottom = 120, left = 25, actionButton("resetButton1", "Reset Map")),
-                  checkboxInput("checkbox1", "Census tract", value = FALSE)
+                  checkboxInput("checkbox1", "Census tract", value = FALSE),
+                  checkboxInput("checkbox3", "Only show top 10%", value = FALSE)
                 ),
                 column(6,
                   mapviewOutput("areaMap2", height="70vh"),
                   absolutePanel(bottom = 120, left = 25, actionButton("resetButton2", "Reset Map")),
-                  checkboxInput("checkbox2", "Census tract", value = FALSE)
+                  checkboxInput("checkbox2", "Census tract", value = FALSE),
+                  checkboxInput("checkbox4", "Only show top 10%", value = FALSE)
                 )
               )
             ),
@@ -422,6 +424,7 @@ server <- function(input, output, session) {
       selected = "kwh"
     )
     updateCheckboxInput(session, "checkbox1", value = FALSE)
+    updateCheckboxInput(session, "checkbox3", value = FALSE)
   })
 
   observeEvent(input$resetButton2, {
@@ -438,6 +441,7 @@ server <- function(input, output, session) {
       selected = "kwh"
     )
     updateCheckboxInput(session, "checkbox2", value = FALSE)
+    updateCheckboxInput(session, "checkbox4", value = FALSE)
   })
 
   filterBlocks <- function(inputVal) {
@@ -572,12 +576,30 @@ server <- function(input, output, session) {
 
   activeArea1 <- reactive({
     toReturn <- filterBlocks(1)
-    mapview(toReturn, zcol = determine_zcol(1), layer.name=formatName(1), basemaps=c("CartoDB.Positron","CartoDB.DarkMatter","OpenStreetMap", "Esri.WorldImagery","OpenTopoMap"))
+    zcol <- determine_zcol(2)
+
+    # Show only the top 10% of a given category
+    if (input$checkbox3) {
+      top_10_percent <- quantile(toReturn[[zcol]], probs = .9, na.rm=TRUE)
+      top_10_percent <- top_10_percent[[1]]
+      toReturn <- subset(toReturn, toReturn[[zcol]] >= top_10_percent)
+    }
+
+    mapview(toReturn, zcol = zcol, layer.name=formatName(1), basemaps=c("CartoDB.Positron","CartoDB.DarkMatter","OpenStreetMap", "Esri.WorldImagery","OpenTopoMap"))
   })
 
   activeArea2 <- reactive({
     toReturn <- filterBlocks(2)
-    mapview(toReturn, zcol = determine_zcol(2), layer.name=formatName(2), basemaps=c("CartoDB.Positron","CartoDB.DarkMatter","OpenStreetMap", "Esri.WorldImagery","OpenTopoMap"))
+    zcol <- determine_zcol(2)
+
+    # Show only the top 10% of a given category
+    if (input$checkbox4) {
+      top_10_percent <- quantile(toReturn[[zcol]], probs = .9, na.rm=TRUE)
+      top_10_percent <- top_10_percent[[1]]
+      toReturn <- subset(toReturn, toReturn[[zcol]] >= top_10_percent)
+    }
+
+    mapview(toReturn, zcol = zcol, layer.name=formatName(2), basemaps=c("CartoDB.Positron","CartoDB.DarkMatter","OpenStreetMap", "Esri.WorldImagery","OpenTopoMap"))
   })
 
   plotData0 <- reactive({
