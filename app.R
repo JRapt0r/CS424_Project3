@@ -231,13 +231,13 @@ ui <- fluidPage(
             tabPanel("Maps",
               fluidRow(
                 column(6,
-                  mapviewOutput("areaMap1", height="70vh"),
+                  mapviewOutput("areaMap1", height="66vh"),
                   absolutePanel(bottom = 120, left = 25, actionButton("resetButton1", "Reset Map")),
                   checkboxInput("checkbox1", "Census tract", value = FALSE),
                   checkboxInput("checkbox3", "Only show top 10%", value = FALSE)
                 ),
                 column(6,
-                  mapviewOutput("areaMap2", height="70vh"),
+                  mapviewOutput("areaMap2", height="66vh"),
                   absolutePanel(bottom = 120, left = 25, actionButton("resetButton2", "Reset Map")),
                   checkboxInput("checkbox2", "Census tract", value = FALSE),
                   checkboxInput("checkbox4", "Only show top 10%", value = FALSE)
